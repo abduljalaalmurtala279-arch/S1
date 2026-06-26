@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QRAttend BUK — Student Portal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+  :root {
+    --green: #0a5c36;
+    --green-mid: #0d7a48;
+    --green-light: #e6f4ed;
+    --gold: #c9a84c;
+    --gold-light: #fdf6e3;
+    --bg: #f5f7f5;
+    --surface: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #dde3dd;
+    --red: #dc2626;
+    --shadow: 0 2px 12px rgba(10,92,54,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .topbar {
+    background: var(--green); color: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 56px; position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-brand { font-family: 'Space Grotesk',sans-serif; font-size: 18px; font-weight: 700; }
+  .topbar-brand span { color: var(--gold); }
+  .topbar-user { font-size: 13px; display: flex; align-items: center; gap: 10px; }
+  #logoutBtn { background: rgba(255,255,255,.15); border: none; color: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  #logoutBtn:hover { background: rgba(255,255,255,.25); }
+
+  .screen { display: none; max-width: 900px; margin: 0 auto; padding: 28px 16px; }
+  .screen.active { display: block; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .card-title { font-family: 'Space Grotesk',sans-serif; font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--green-light); }
+
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .field input, .field select { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 15px; font-family: 'Inter',sans-serif; background: #fff; color: var(--text); transition: border .2s; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--green); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; font-family: 'Inter',sans-serif; }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: var(--green-mid); }
+  .btn-outline { background: transparent; color: var(--green); border: 1.5px solid var(--green); }
+  .btn-outline:hover { background: var(--green-light); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* LOGIN */
+  #loginScreen { max-width: 440px; }
+  .login-logo { text-align: center; margin-bottom: 28px; }
+  .login-logo h1 { font-family: 'Space Grotesk',sans-serif; font-size: 28px; color: var(--green); }
+  .login-logo h1 span { color: var(--gold); }
+  .login-logo p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  /* CHECKIN */
+  #checkinScreen { max-width: 540px; }
+  .session-info { background: var(--green-light); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .session-info h3 { font-family: 'Space Grotesk',sans-serif; color: var(--green); font-size: 18px; margin-bottom: 6px; }
+  .session-info p { font-size: 14px; color: var(--muted); }
+  .session-meta { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; }
+  .session-meta span { font-size: 13px; background: #fff; padding: 4px 10px; border-radius: 6px; color: var(--green); font-weight: 600; }
+
+  /* SUCCESS */
+  .success-box { text-align: center; padding: 32px; }
+  .success-icon { font-size: 60px; margin-bottom: 12px; }
+  .success-box h2 { font-family: 'Space Grotesk',sans-serif; color: var(--green); font-size: 24px; }
+  .success-box p { color: var(--muted); margin-top: 8px; }
+
+  /* DASHBOARD */
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; box-shadow: var(--shadow); }
+  .stat-num { font-family: 'Space Grotesk',sans-serif; font-size: 30px; font-weight: 700; color: var(--green); }
+  .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* COURSE CARD */
+  .course-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  .course-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .course-code { font-family: 'Space Grotesk',sans-serif; font-weight: 700; font-size: 17px; color: var(--green); }
+  .course-title { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .pct-badge { font-family: 'Space Grotesk',sans-serif; font-size: 22px; font-weight: 700; }
+  .pct-badge.good { color: var(--green); }
+  .pct-badge.warn { color: #d97706; }
+  .pct-badge.bad  { color: var(--red); }
+  .progress-wrap { background: #e5e7eb; border-radius: 20px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 20px; transition: width .6s ease; }
+  .progress-fill.good { background: var(--green); }
+  .progress-fill.warn { background: #f59e0b; }
+  .progress-fill.bad  { background: var(--red); }
+  .course-meta { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  /* HISTORY TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { background: var(--green-light); color: var(--green); font-weight: 600; padding: 10px 14px; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #fafcfa; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-red { background: #fef2f2; color: var(--red); }
+
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+  .alert-success { background: var(--green-light); color: var(--green); border: 1px solid #a0d4b8; }
+  .alert-error { background: #fef2f2; color: var(--red); border: 1px solid #fca5a5; }
+  .alert-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .alert-warn { background: var(--gold-light); color: #8a6a00; border: 1px solid #f0d080; }
+
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .empty-state { text-align: center; padding: 36px; color: var(--muted); }
+
+  /* FACULTY BROWSER */
+  .faculty-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 14px; }
+  .faculty-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 18px 14px; cursor: pointer; text-align: center; transition: all .2s; }
+  .faculty-btn:hover { border-color: var(--green); background: var(--green-light); }
+  .faculty-btn .fac-icon { font-size: 28px; margin-bottom: 8px; }
+  .faculty-btn .fac-name { font-size: 13px; font-weight: 600; color: var(--green); }
+
+  .dept-list { display: flex; flex-direction: column; gap: 10px; }
+  .dept-item { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all .2s; }
+  .dept-item:hover { border-color: var(--green); background: var(--green-light); }
+  .dept-item .dept-name { font-weight: 600; color: var(--text); }
+  .dept-item .dept-arrow { color: var(--green); font-size: 18px; }
+
+  @media(max-width:600px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    .faculty-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar" style="display:none">
+  <div class="topbar-brand">QRAttend <span>· BUK</span></div>
+  <div class="topbar-user">
+    <span id="topbarName"></span>
+    <button id="logoutBtn" onclick="logout()">Sign out</button>
+  </div>
+</div>
+
+<!-- ════════════════════════ LOGIN ════════════════════════ -->
+<div class="screen active" id="loginScreen" style="max-width:440px;margin:50px auto;padding:28px 16px">
+  <div class="login-logo">
+    <h1>QRAttend <span>· BUK</span></h1>
+    <p>Student Portal — Faculty of Computing</p>
+  </div>
+  <div class="card">
+    <div id="loginAlert"></div>
+    <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="u20cs0001@stu.buk.edu.ng"/></div>
+    <div class="field"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••"/></div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="loginBtn">Sign In</button>
+    <p style="margin-top:14px;font-size:13px;color:#6b7280;text-align:center">
+      No account? <a href="#" onclick="showReg()" style="color:var(--green);font-weight:600">Register</a>
+    </p>
+  </div>
+</div>
+
+<!-- ════════════════════════ REGISTER ════════════════════════ -->
+<div class="screen" id="regScreen" style="max-width:500px;margin:50px auto;padding:28px 16px">
+  <div class="login-logo">
+    <h1>QRAttend <span>· BUK</span></h1>
+    <p>Student Registration</p>
+  </div>
+  <div class="card">
+    <div id="regAlert"></div>
+    <div class="field-row">
+      <div class="field"><label>First Name</label><input type="text" id="regFirst" placeholder="Amina"/></div>
+      <div class="field"><label>Last Name</label><input type="text" id="regLast" placeholder="Yusuf"/></div>
+    </div>
+    <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="u20cs0001@stu.buk.edu.ng"/></div>
+    <div class="field"><label>Reg. Number</label><input type="text" id="regRegNo" placeholder="e.g. U20CS0001"/></div>
+    <div class="field">
+      <label>Faculty</label>
+      <select id="regFaculty" onchange="populateDeptReg()">
+        <option value="">— Select —</option>
+        <option value="Computing">Faculty of Computing</option>
+        <option value="Science">Faculty of Science</option>
+        <option value="Engineering">Faculty of Engineering</option>
+        <option value="Education">Faculty of Education</option>
+        <option value="Arts">Faculty of Arts & Islamic Studies</option>
+        <option value="Management">Faculty of Management Sciences</option>
+        <option value="Medicine">Faculty of Medicine</option>
+        <option value="Law">Faculty of Law</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Department</label>
+      <select id="regDept"><option>— Select Faculty first —</option></select>
+    </div>
+    <div class="field"><label>Level</label>
+      <select id="regLevel">
+        <option value="100">100 Level</option><option value="200">200 Level</option>
+        <option value="300">300 Level</option><option value="400">400 Level</option>
+      </select>
+    </div>
+    <div class="field"><label>Password</label><input type="password" id="regPass" placeholder="Min. 6 chars"/></div>
+    <button class="btn btn-primary" style="width:100%" onclick="doRegister()" id="regBtn">Create Account</button>
+    <p style="margin-top:14px;font-size:13px;color:#6b7280;text-align:center">
+      Already registered? <a href="#" onclick="showLogin()" style="color:var(--green);font-weight:600">Sign in</a>
+    </p>
+  </div>
+</div>
+
+<!-- ════════════════════ CHECK-IN ════════════════════════ -->
+<div class="screen" id="checkinScreen" style="max-width:540px;margin:40px auto;padding:28px 16px">
+  <div class="login-logo" style="text-align:left;margin-bottom:0">
+    <h1 style="font-size:20px">QRAttend <span style="color:var(--gold)">· BUK</span></h1>
+  </div>
+  <br>
+  <div id="checkinAlertTop"></div>
+
+  <!-- Session info banner -->
+  <div class="session-info" id="sessionInfoBox" style="display:none">
+    <h3 id="ciCourse">—</h3>
+    <p id="ciLecturer">—</p>
+    <div class="session-meta">
+      <span id="ciDate">—</span>
+      <span id="ciSession">—</span>
+      <span id="ciExpiry">—</span>
+    </div>
+  </div>
+
+  <!-- Check-in form -->
+  <div class="card" id="checkinFormCard">
+    <div class="card-title">Mark Your Attendance</div>
+    <div id="checkinAlert"></div>
+    <div class="field"><label>Full Name</label><input type="text" id="ciName" placeholder="Amina Yusuf"/></div>
+    <div class="field"><label>Registration Number</label><input type="text" id="ciReg" placeholder="U20CS0001" style="text-transform:uppercase"/></div>
+    <div class="field">
+      <label>Faculty</label>
+      <select id="ciFaculty" onchange="populateDeptCI()">
+        <option value="">— Select —</option>
+        <option value="Computing">Faculty of Computing</option>
+        <option value="Science">Faculty of Science</option>
+        <option value="Engineering">Faculty of Engineering</option>
+        <option value="Education">Faculty of Education</option>
+        <option value="Arts">Faculty of Arts & Islamic Studies</option>
+        <option value="Management">Faculty of Management Sciences</option>
+        <option value="Medicine">Faculty of Medicine</option>
+        <option value="Law">Faculty of Law</option>
+      </select>
+    </div>
+    <div class="field"><label>Department</label><select id="ciDept"><option>— Select Faculty —</option></select></div>
+    <div class="field-row">
+      <div class="field"><label>Level</label>
+        <select id="ciLevel">
+          <option value="100">100 Level</option><option value="200">200 Level</option>
+          <option value="300">300 Level</option><option value="400">400 Level</option>
+        </select>
+      </div>
+      <div class="field"><label>Date</label><input type="date" id="ciDate2"/></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="submitCheckin()" id="ciBtn">
+      ✓ Submit Attendance
+    </button>
+  </div>
+
+  <!-- Success state -->
+  <div class="card" id="checkinSuccess" style="display:none">
+    <div class="success-box">
+      <div class="success-icon">✅</div>
+      <h2>Attendance Recorded!</h2>
+      <p id="successMsg">Your attendance has been marked.</p>
+      <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="goToDashboard()">View My Dashboard</button>
+        <button class="btn btn-outline" onclick="resetCheckin()">Mark Another</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ STUDENT DASHBOARD ════════════════════ -->
+<div class="screen" id="dashScreen">
+  <div class="nav-row">
+    <div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--green)">My Attendance</h2>
+      <p style="font-size:14px;color:var(--muted);margin-top:2px" id="dashSubtitle">—</p>
+    </div>
+    <button class="btn btn-outline" onclick="showScreen('facultyScreen')">🏫 Faculty View</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num" id="statSessions">—</div>
+      <div class="stat-label">Sessions Attended</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statCourses">—</div>
+      <div class="stat-label">Courses Tracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statAvgPct">—%</div>
+      <div class="stat-label">Avg. Attendance</div>
+    </div>
+  </div>
+
+  <!-- Per-course attendance -->
+  <div id="courseCards">
+    <div class="empty-state">Loading your attendance records…</div>
+  </div>
+
+  <!-- Full history -->
+  <div class="card" style="margin-top:8px">
+    <div class="card-title">Attendance History</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Course</th><th>Session</th><th>Date</th><th>Check-in Time</th><th>Status</th></tr></thead>
+        <tbody id="historyTable"><tr><td colspan="6"><div class="empty-state">Loading…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ FACULTY BROWSER ══════════════════════ -->
+<div class="screen" id="facultyScreen">
+  <div class="nav-row">
+    <div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--green)">Faculty Attendance Overview</h2>
+      <p style="font-size:14px;color:var(--muted)">Select a faculty to view departments</p>
+    </div>
+    <button class="btn btn-outline" onclick="goToDashboard()">← My Dashboard</button>
+  </div>
+
+  <div class="faculty-grid" id="facultyGrid">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<!-- ════════════════════ DEPT BROWSER ══════════════════════ -->
+<div class="screen" id="deptScreen">
+  <div class="nav-row">
+    <div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--green)" id="deptScreenTitle">Departments</h2>
+      <p style="font-size:14px;color:var(--muted)">Select a department to view attendance</p>
+    </div>
+    <button class="btn btn-outline" onclick="showScreen('facultyScreen')">← Faculties</button>
+  </div>
+  <div class="dept-list" id="deptList"></div>
+</div>
+
+<!-- ════════════════════ DEPT DETAIL ══════════════════════ -->
+<div class="screen" id="deptDetailScreen">
+  <div class="nav-row">
+    <div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--green)" id="deptDetailTitle">—</h2>
+      <p style="font-size:14px;color:var(--muted)" id="deptDetailSub">—</p>
+    </div>
+    <button class="btn btn-outline" onclick="showScreen('deptScreen')">← Departments</button>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num" id="ddStatSessions">—</div><div class="stat-label">Total Sessions</div></div>
+    <div class="stat-card"><div class="stat-num" id="ddStatCheckins">—</div><div class="stat-label">Total Check-ins</div></div>
+    <div class="stat-card"><div class="stat-num" id="ddStatStudents">—</div><div class="stat-label">Unique Students</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title" id="ddTableTitle">Attendance by Course</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Course</th><th>Sessions</th><th>Check-ins</th><th>Avg/Session</th></tr></thead>
+        <tbody id="ddTable"><tr><td colspan="4"><div class="empty-state">Loading…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════ SUPABASE ════════════════════
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_KEY = 'YOUR_ANON_KEY';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ════════════════════ FACULTY/DEPT DATA ════════════════════
+const FACULTY_DATA = [
+  { key:'Computing',   name:'Faculty of Computing',            icon:'💻' },
+  { key:'Science',     name:'Faculty of Science',              icon:'🔬' },
+  { key:'Engineering', name:'Faculty of Engineering',          icon:'⚙️' },
+  { key:'Education',   name:'Faculty of Education',            icon:'📚' },
+  { key:'Arts',        name:'Faculty of Arts & Islamic Studies',icon:'📖' },
+  { key:'Management',  name:'Faculty of Management Sciences',  icon:'📊' },
+  { key:'Medicine',    name:'Faculty of Medicine',             icon:'🩺' },
+  { key:'Law',         name:'Faculty of Law',                  icon:'⚖️' },
+];
+const DEPTS = {
+  Computing:   ['Computer Science','Software Engineering','Information Technology','Cyber Security','Data Science'],
+  Science:     ['Mathematics','Physics','Chemistry','Biology','Statistics','Biochemistry'],
+  Engineering: ['Electrical Engineering','Civil Engineering','Mechanical Engineering','Chemical Engineering'],
+  Education:   ['Education Mathematics','Education Biology','Education Chemistry','Education Physics'],
+  Arts:        ['Arabic & Islamic Studies','History','English','Linguistics','French'],
+  Management:  ['Accounting','Business Administration','Economics','Finance','Marketing'],
+  Medicine:    ['Medicine & Surgery','Nursing','Pharmacy','Medical Laboratory Science'],
+  Law:         ['Law (LLB)'],
+};
+
+function populateDept(selectId, facultyVal) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">— Select Department —</option>';
+  if (!facultyVal || !DEPTS[facultyVal]) return;
+  DEPTS[facultyVal].forEach(d => { const o=document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o); });
+}
+function populateDeptReg() { populateDept('regDept', document.getElementById('regFaculty').value); }
+function populateDeptCI()  { populateDept('ciDept',  document.getElementById('ciFaculty').value); }
+
+// ════════════════════ ROUTING ════════════════════
+let currentUser = null, sessionData = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showLogin() { showScreen('loginScreen'); }
+function showReg()   { showScreen('regScreen'); }
+
+// ════════════════════ AUTH ════════════════════
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if (!email||!pass) return setAlert('loginAlert','error','Fill in all fields.');
+  setAlert('loginAlert','info','Signing in…');
+  document.getElementById('loginBtn').disabled = true;
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+  document.getElementById('loginBtn').disabled = false;
+  if (error) return setAlert('loginAlert','error', error.message);
+  await afterLogin(data.user);
+}
+
+async function doRegister() {
+  const first  = document.getElementById('regFirst').value.trim();
+  const last   = document.getElementById('regLast').value.trim();
+  const email  = document.getElementById('regEmail').value.trim();
+  const regNo  = document.getElementById('regRegNo').value.trim().toUpperCase();
+  const fac    = document.getElementById('regFaculty').value;
+  const dept   = document.getElementById('regDept').value;
+  const level  = document.getElementById('regLevel').value;
+  const pass   = document.getElementById('regPass').value;
+  if (!first||!last||!email||!regNo||!fac||!dept||!pass)
+    return setAlert('regAlert','error','Complete all fields.');
+  setAlert('regAlert','info','Creating account…');
+  document.getElementById('regBtn').disabled = true;
+  const { data, error } = await db.auth.signUp({
+    email, password: pass,
+    options: { data: { full_name:`${first} ${last}`, reg_number:regNo, faculty:fac, department:dept, level, role:'student' } }
+  });
+  document.getElementById('regBtn').disabled = false;
+  if (error) return setAlert('regAlert','error', error.message);
+  setAlert('regAlert','success','Account created! Please confirm your email, then sign in.');
+}
+
+async function afterLogin(user) {
+  currentUser = user;
+  const meta = user.user_metadata || {};
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('topbarName').textContent = meta.full_name || user.email;
+
+  // Pre-fill check-in form from profile
+  if (meta.full_name)    document.getElementById('ciName').value  = meta.full_name;
+  if (meta.reg_number)   document.getElementById('ciReg').value   = meta.reg_number;
+  if (meta.faculty) {
+    document.getElementById('ciFaculty').value = meta.faculty;
+    populateDeptCI();
+    setTimeout(()=>{ if(meta.department) document.getElementById('ciDept').value = meta.department; }, 100);
+  }
+  if (meta.level)        document.getElementById('ciLevel').value = meta.level;
+  document.getElementById('ciDate2').value = new Date().toISOString().split('T')[0];
+
+  // Check URL for session param
+  const params = new URLSearchParams(location.search);
+  const sid = params.get('session');
+  if (sid) {
+    await loadSessionForCheckin(sid);
+  } else {
+    await goToDashboard();
+  }
+}
+
+async function logout() {
+  await db.auth.signOut();
+  currentUser = null;
+  sessionData = null;
+  document.getElementById('topbar').style.display = 'none';
+  showScreen('loginScreen');
+}
+
+// ════════════════════ CHECKIN ════════════════════
+async function loadSessionForCheckin(sessionId) {
+  const { data: sess, error } = await db
+    .from('sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .single();
+
+  if (error || !sess) {
+    setAlert('checkinAlertTop','error','Session not found or expired link.');
+    showScreen('checkinScreen');
+    return;
+  }
+
+  const now = new Date();
+  const expires = new Date(sess.expires_at);
+  if (expires < now) {
+    setAlert('checkinAlertTop','warn','⚠️ This QR code has expired. Ask your lecturer to generate a new one.');
+    document.getElementById('ciBtn').disabled = true;
+    showScreen('checkinScreen');
+    return;
+  }
+
+  sessionData = sess;
+  document.getElementById('ciCourse').textContent   = `${sess.course_code} — ${sess.course_title||''}`;
+  document.getElementById('ciLecturer').textContent = `Lecturer: ${sess.lecturer_name||'—'}`;
+  document.getElementById('ciDate').textContent     = `📅 ${sess.date||'—'}`;
+  document.getElementById('ciSession').textContent  = `📋 ${sess.session_label||'—'}`;
+  const rem = Math.max(0, Math.round((expires-now)/60000));
+  document.getElementById('ciExpiry').textContent   = `⏱ Expires in ${rem} min`;
+  document.getElementById('sessionInfoBox').style.display = 'block';
+  showScreen('checkinScreen');
+}
+
+async function submitCheckin() {
+  const name    = document.getElementById('ciName').value.trim();
+  const regNo   = document.getElementById('ciReg').value.trim().toUpperCase();
+  const faculty = document.getElementById('ciFaculty').value;
+  const dept    = document.getElementById('ciDept').value;
+  const level   = document.getElementById('ciLevel').value;
+  const date    = document.getElementById('ciDate2').value;
+
+  if (!name||!regNo||!faculty||!dept)
+    return setAlert('checkinAlert','error','Please fill in all fields.');
+  if (!sessionData)
+    return setAlert('checkinAlert','error','No active session loaded. Scan the QR again.');
+
+  // Check expiry
+  if (new Date(sessionData.expires_at) < new Date())
+    return setAlert('checkinAlert','error','This session has expired. Ask your lecturer to generate a new QR code.');
+
+  // Check if already checked in
+  const { data: existing } = await db
+    .from('attendance')
+    .select('id')
+    .eq('session_id', sessionData.id)
+    .eq('reg_number', regNo)
+    .maybeSingle();
+  if (existing)
+    return setAlert('checkinAlert','warn','⚠️ You already checked in to this session.');
+
+  document.getElementById('ciBtn').disabled = true;
+  setAlert('checkinAlert','info','Recording attendance…');
+
+  const now = new Date().toISOString();
+  const { error } = await db.from('attendance').insert({
+    session_id:     sessionData.id,
+    course_code:    sessionData.course_code,
+    course_title:   sessionData.course_title,
+    session_label:  sessionData.session_label,
+    date:           date || sessionData.date,
+    full_name:      name,
+    reg_number:     regNo,
+    faculty, department: dept, level,
+    check_in_time:  now,
+    student_id:     currentUser?.id || null,
+  });
+
+  document.getElementById('ciBtn').disabled = false;
+  if (error) return setAlert('checkinAlert','error', error.message);
+
+  document.getElementById('checkinAlert').innerHTML = '';
+  document.getElementById('successMsg').textContent =
+    `${name} (${regNo}) — ${sessionData.course_code}, ${sessionData.session_label}`;
+  document.getElementById('checkinFormCard').style.display = 'none';
+  document.getElementById('checkinSuccess').style.display = 'block';
+}
+
+function resetCheckin() {
+  document.getElementById('checkinFormCard').style.display = 'block';
+  document.getElementById('checkinSuccess').style.display = 'none';
+  document.getElementById('checkinAlert').innerHTML = '';
+}
+
+// ════════════════════ STUDENT DASHBOARD ════════════════════
+async function goToDashboard() {
+  showScreen('dashScreen');
+  const meta = currentUser?.user_metadata || {};
+  document.getElementById('dashSubtitle').textContent =
+    `${meta.reg_number||''} | ${meta.department||''} | Level ${meta.level||''}`;
+  await loadDashboard();
+  buildFacultyGrid();
+}
+
+async function loadDashboard() {
+  const regNo = currentUser?.user_metadata?.reg_number;
+  if (!regNo) {
+    document.getElementById('courseCards').innerHTML =
+      '<div class="alert alert-warn">Your registration number is not set. Please update your profile.</div>';
+    return;
+  }
+
+  const { data: records, error } = await db
+    .from('attendance')
+    .select('id, course_code, course_title, session_label, date, check_in_time, session_id')
+    .eq('reg_number', regNo)
+    .order('check_in_time', { ascending: false });
+
+  if (error) return;
+  const rows = records || [];
+
+  // Aggregate per course
+  const courseMap = {};
+  for (const r of rows) {
+    if (!courseMap[r.course_code]) courseMap[r.course_code] = { title: r.course_title, sessions: 0, records: [] };
+    courseMap[r.course_code].sessions++;
+    courseMap[r.course_code].records.push(r);
+  }
+
+  // For each course, get total sessions by the lecturer to compute attendance %
+  const courseKeys = Object.keys(courseMap);
+  for (const code of courseKeys) {
+    const { count } = await db
+      .from('sessions')
+      .select('id', { count:'exact', head:true })
+      .eq('course_code', code);
+    courseMap[code].totalSessions = count || 1;
+  }
+
+  const allPcts = courseKeys.map(c => {
+    const d = courseMap[c];
+    return Math.round((d.sessions / d.totalSessions) * 100);
+  });
+  const avgPct = allPcts.length ? Math.round(allPcts.reduce((a,b)=>a+b,0)/allPcts.length) : 0;
+
+  document.getElementById('statSessions').textContent = rows.length;
+  document.getElementById('statCourses').textContent  = courseKeys.length;
+  document.getElementById('statAvgPct').textContent   = avgPct + '%';
+
+  // Render course cards
+  if (!courseKeys.length) {
+    document.getElementById('courseCards').innerHTML =
+      '<div class="empty-state">No attendance records yet. Scan a lecturer\'s QR code to mark attendance.</div>';
+  } else {
+    document.getElementById('courseCards').innerHTML = courseKeys.map(code => {
+      const d = courseMap[code];
+      const pct = Math.round((d.sessions / d.totalSessions) * 100);
+      const cls = pct >= 75 ? 'good' : pct >= 50 ? 'warn' : 'bad';
+      const statusLabel = pct >= 75 ? '✅ Good Standing' : pct >= 50 ? '⚠️ At Risk' : '❌ Critical';
+      return `<div class="course-card">
+        <div class="course-header">
+          <div>
+            <div class="course-code">${code}</div>
+            <div class="course-title">${d.title||''}</div>
+          </div>
+          <div class="pct-badge ${cls}">${pct}%</div>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+        <div class="course-meta">${d.sessions} of ${d.totalSessions} sessions attended &nbsp;·&nbsp; ${statusLabel}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // History table
+  if (!rows.length) {
+    document.getElementById('historyTable').innerHTML =
+      '<tr><td colspan="6"><div class="empty-state">No records yet.</div></td></tr>';
+    return;
+  }
+  document.getElementById('historyTable').innerHTML = rows.map((r,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><b>${r.course_code}</b><br><span style="font-size:12px;color:var(--muted)">${r.course_title||''}</span></td>
+      <td>${r.session_label||'—'}</td>
+      <td>${r.date||'—'}</td>
+      <td>${r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : '—'}</td>
+      <td><span class="badge badge-green">Present</span></td>
+    </tr>`).join('');
+}
+
+// ════════════════════ FACULTY BROWSER ════════════════════
+let selectedFaculty = null;
+
+function buildFacultyGrid() {
+  document.getElementById('facultyGrid').innerHTML = FACULTY_DATA.map(f => `
+    <div class="faculty-btn" onclick="selectFaculty('${f.key}','${f.name}')">
+      <div class="fac-icon">${f.icon}</div>
+      <div class="fac-name">${f.name}</div>
+    </div>`).join('');
+}
+
+function selectFaculty(key, name) {
+  selectedFaculty = key;
+  document.getElementById('deptScreenTitle').textContent = name;
+  const depts = DEPTS[key] || [];
+  document.getElementById('deptList').innerHTML = depts.map(d => `
+    <div class="dept-item" onclick="selectDept('${d}','${name}')">
+      <div>
+        <div class="dept-name">${d}</div>
+        <div style="font-size:12px;color:var(--muted)">${name}</div>
+      </div>
+      <div class="dept-arrow">›</div>
+    </div>`).join('');
+  showScreen('deptScreen');
+}
+
+async function selectDept(dept, facultyName) {
+  document.getElementById('deptDetailTitle').textContent = dept;
+  document.getElementById('deptDetailSub').textContent  = `${facultyName} — ${selectedFaculty}`;
+  showScreen('deptDetailScreen');
+
+  // Fetch all sessions for this department
+  const { data: sessions } = await db
+    .from('sessions')
+    .select('id, course_code, course_title')
+    .eq('department', dept);
+
+  const sessIds = (sessions||[]).map(s => s.id);
+  document.getElementById('ddStatSessions').textContent = sessIds.length;
+
+  if (!sessIds.length) {
+    document.getElementById('ddStatCheckins').textContent = 0;
+    document.getElementById('ddStatStudents').textContent = 0;
+    document.getElementById('ddTable').innerHTML = '<tr><td colspan="4"><div class="empty-state">No sessions for this department yet.</div></td></tr>';
+    return;
+  }
+
+  // Fetch all attendance for these sessions
+  const { data: att } = await db
+    .from('attendance')
+    .select('id, session_id, course_code, course_title, reg_number')
+    .in('session_id', sessIds);
+
+  const records = att || [];
+  const uniqueStudents = new Set(records.map(r => r.reg_number)).size;
+  document.getElementById('ddStatCheckins').textContent = records.length;
+  document.getElementById('ddStatStudents').textContent = uniqueStudents;
+
+  // Group by course
+  const byCode = {};
+  for (const s of sessions) {
+    if (!byCode[s.course_code]) byCode[s.course_code] = { title:s.course_title, sessions:0, checkins:0 };
+    byCode[s.course_code].sessions++;
+  }
+  for (const r of records) {
+    if (byCode[r.course_code]) byCode[r.course_code].checkins++;
+  }
+
+  document.getElementById('ddTable').innerHTML = Object.entries(byCode).map(([code, d]) => `
+    <tr>
+      <td><b>${code}</b><br><span style="font-size:12px;color:var(--muted)">${d.title||''}</span></td>
+      <td>${d.sessions}</td>
+      <td>${d.checkins}</td>
+      <td>${d.sessions ? (d.checkins/d.sessions).toFixed(1) : '—'}</td>
+    </tr>`).join('');
+}
+
+// ════════════════════ HELPERS ════════════════════
+function setAlert(id, type, msg) {
+  const el = document.getElementById(id); if (!el) return;
+  const cls = type==='error'?'alert-error':type==='success'?'alert-success':type==='warn'?'alert-warn':'alert-info';
+  el.innerHTML = `<div class="alert ${cls}">${msg}</div>`;
+}
+
+// ════════════════════ INIT ════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session?.user) {
+    await afterLogin(session.user);
+  } else {
+    // Check if there's a session param in URL — prompt login first
+    const params = new URLSearchParams(location.search);
+    if (params.get('session')) {
+      setAlert('loginAlert','info','Please sign in to mark your attendance.');
+    }
+  }
+});
+</script>
+</body>
+</html>
